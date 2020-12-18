@@ -62,13 +62,15 @@ where
     }
 }
 
-pub fn autocorrelation<T>(
-    signal: &[T],
+pub fn autocorrelation<'a, T, S, I>(
+    signal: S,
     signal_complex: &mut [Complex<T>],
     scratch: &mut [Complex<T>],
     result: &mut [T],
 ) where
     T: Float,
+    I: ExactSizeIterator<Item = &'a T>,
+    S: IntoIterator<IntoIter = I, Item = &'a T>,
 {
     copy_real_to_complex(signal, signal_complex, ComplexComponent::Re);
     let mut planner = FFTplanner::new(false);
@@ -103,21 +105,24 @@ where
         })
 }
 
-pub fn get_power_level<T>(signal: &[T]) -> T
+pub fn get_power_level<'a, T, S>(signal: S) -> T
 where
     T: Float + std::iter::Sum,
+    S: IntoIterator<Item = &'a T>,
 {
-    signal.iter().map(|s| *s * *s).sum::<T>()
+    signal.into_iter().map(|s| *s * *s).sum::<T>()
 }
 
-fn m_of_tau<T>(signal: &[T], signal_square_sum: Option<T>, result: &mut [T])
+fn m_of_tau<'a, T, S, I>(signal: S, signal_square_sum: Option<T>, result: &mut [T])
 where
     T: Float + std::iter::Sum,
+    I: ExactSizeIterator<Item = &'a T>,
+    S: IntoIterator<IntoIter = I, Item = &'a T> + Copy,
 {
-    assert!(result.len() >= signal.len());
+    assert!(result.len() >= signal.into_iter().len());
 
     let signal_square_sum =
-        signal_square_sum.unwrap_or_else(|| signal.iter().map(|s| *s * *s).sum::<T>());
+        signal_square_sum.unwrap_or_else(|| signal.into_iter().map(|s| *s * *s).sum::<T>());
 
     result[0] = T::from_usize(2).unwrap() * signal_square_sum;
     let last = result[1..].iter_mut().zip(signal).fold(
@@ -127,17 +132,21 @@ where
             *r
         },
     );
-    result[signal.len()..].iter_mut().for_each(|r| *r = last);
+    result[signal.into_iter().len()..]
+        .iter_mut()
+        .for_each(|r| *r = last);
 }
 
-pub fn normalized_square_difference<T>(
-    signal: &[T],
+pub fn normalized_square_difference<'a, T, S, I>(
+    signal: S,
     scratch0: &mut [Complex<T>],
     scratch1: &mut [Complex<T>],
     scratch2: &mut [T],
     result: &mut [T],
 ) where
     T: Float + std::iter::Sum,
+    I: ExactSizeIterator<Item = &'a T>,
+    S: IntoIterator<IntoIter = I, Item = &'a T> + Copy,
 {
     autocorrelation(signal, scratch0, scratch1, result);
     m_of_tau(signal, Some(result[0]), scratch2);

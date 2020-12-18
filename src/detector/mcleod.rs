@@ -28,14 +28,18 @@ impl<T> PitchDetector<T> for McLeodDetector<T>
 where
     T: Float + std::iter::Sum,
 {
-    fn get_pitch(
+    fn get_pitch<'a, S, I>(
         &mut self,
-        signal: &[T],
+        signal: S,
         sample_rate: usize,
         power_threshold: T,
         clarity_threshold: T,
-    ) -> Option<Pitch<T>> {
-        assert_eq!(signal.len(), self.internals.size);
+    ) -> Option<Pitch<T>>
+    where
+        I: ExactSizeIterator<Item = &'a T>,
+        S: IntoIterator<IntoIter = I, Item = &'a T> + Copy,
+    {
+        assert_eq!(signal.into_iter().len(), self.internals.size);
 
         if get_power_level(signal) < power_threshold {
             return None;
